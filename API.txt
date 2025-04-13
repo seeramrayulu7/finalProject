@@ -1,0 +1,1 @@
+GOOGLE_API_KEY='Paste your api key within these quotes and save the file with the name .env'
