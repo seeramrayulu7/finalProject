@@ -11,14 +11,6 @@ from chatbotInterface import user_input, display_chat, skinDiseasePrediction
 init_db()
 
 # Function to retrieve user data
-def get_user_data(username):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT chat_history, uploaded_images, timestamp FROM user_data WHERE username = ?", (username,))
-    data = cursor.fetchall()
-    conn.close()
-    return data
-
 # Main app
 def main():
     st.set_page_config("Health Chatbot", layout="wide")
@@ -94,7 +86,7 @@ def main():
             if st.button("Submit", key="submit_image"):
                 with st.spinner("Processing..."):
                     pil_image = Image.open(uploaded_file)
-                    st.image(pil_image, caption="Uploaded Image", use_column_width=True)
+                    st.image(pil_image, caption="Uploaded Image", use_container_width=True)
                     opencv_image = np.array(pil_image)
                     skinDiseasePrediction(opencv_image)
 

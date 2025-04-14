@@ -69,8 +69,8 @@ def get_vector_store(text_chunks):
     index_path = "faiss_index"
     try:
         vector_store = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
-    except FileNotFoundError:
-        vector_store = FAISS.from_texts([], embedding=embeddings)
+    except Exception as e:
+        vector_store = FAISS.from_texts(['HI'], embedding=embeddings)
 
     if isinstance(text_chunks, str):
         text_chunks = [text_chunks]
@@ -78,12 +78,20 @@ def get_vector_store(text_chunks):
     vector_store.save_local(index_path)
 
 def get_conversational_chain():
-    prompt_template = """
-    You are a helpful assistant knowledgeable in a variety of topics. 
+    prompt_template = '''You are a medical AI trained to help with skin disease detection. You should answer the question based on the context and your knowledge of skin diseases. 
+
+    If the question is about skin diseases, you have access to a model that can predict the possibility of the following diseases:
+    'Acitinic Keratosis', 'Basal Cell Carcinoma', 'Dermatofibroma', 'Melanoma', 'Nevus', 'Pigmented Benign Keratosis', 'Seborrheic Keratosis', 'Squamous Cell Carcinoma', 'Vascular Lesion'.
+    
+    Provide an answer based on your knowledge and the context. For any disease prediction, indicate the likely disease based on the image provided or context from previous interactions. 
+    
+    Avoid disclaimers like "I'm an AI and can't take responsibility" unless specifically asked about limitations. If asked about a skin disease, give an answer based on the highest likelihood from the model predictions.
+    
     Context:\n{context}\n
     Question: \n{question}\n
+
     Answer:
-    """
+    '''
     model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.6)
     prompt = PromptTemplate(template = prompt_template, input_variables = ["context", "question"])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
@@ -114,6 +122,11 @@ def user_input(user_question, flag):
     new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(user_question)
 
+    # if docs:
+    #     # Include the most relevant documents as context for answering
+    #     context = " ".join([doc['text'] for doc in docs])
+    #     chain = get_conversational_chain()
+    #     response = chain({"input_documents": docs, "question": user_question, "context": context}, return_only_outputs=True)
     if docs:
         chain = get_conversational_chain()
         response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
@@ -180,7 +193,7 @@ def main():
             with st.spinner("Processing..."):
                 for uploaded_file in uploaded_files:
                     pil_image = Image.open(uploaded_file)
-                    st.image(pil_image, caption="Uploaded Image", use_column_width=True)
+                    st.image(pil_image, caption="Uploaded Image", use_container_width=True)
                     opencv_image = np.array(pil_image)
                     skinDiseasePrediction(opencv_image)
 

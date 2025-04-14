@@ -78,12 +78,18 @@ def get_vector_store(text_chunks):
     vector_store.save_local(index_path)
 
 def get_conversational_chain():
-    prompt_template = """
-    You are a helpful assistant knowledgeable in a variety of topics. 
+    prompt_template = '''If the question relates to skin diseases, you should answer based on the available context and your knowledge of skin diseases. If the question is general or outside of skin diseases, provide an answer based on your general knowledge.
+
+    If the question is about skin diseases, you have access to a model that can predict the possibility of the following diseases:
+    'Acitinic Keratosis', 'Basal Cell Carcinoma', 'Dermatofibroma', 'Melanoma', 'Nevus', 'Pigmented Benign Keratosis', 'Seborrheic Keratosis', 'Squamous Cell Carcinoma', 'Vascular Lesion'.
+    
+    Answer based on the context for skin diseases, but for general questions, provide general knowledge. 
+
     Context:\n{context}\n
     Question: \n{question}\n
+
     Answer:
-    """
+    '''
     model = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.6)
     prompt = PromptTemplate(template = prompt_template, input_variables = ["context", "question"])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
@@ -146,12 +152,14 @@ def user_input(user_question, flag):
 
     return response
 
+
 def display_chat():
     for message in st.session_state.chat_history:
         if message["role"] == "user":
             st.markdown(f"**User ({message['time']}):** {message['message']}")
         else:
             st.markdown(f"**Bot ({message['time']}):** {message['message']}")
+
 
 # Main function
 def main():
@@ -177,11 +185,12 @@ def main():
         uploaded_file = st.file_uploader("Upload Your image", type=['jpg', 'jpeg', 'png'], accept_multiple_files=False)
     
         if st.button("Submit"):
-            with st.spinner("Processing..."):
-                pil_image = Image.open(uploaded_file)
-                st.image(pil_image, caption="Uploaded Image", use_column_width=True)
-                opencv_image = np.array(pil_image)
-                skinDiseasePrediction(opencv_image)
+            if uploaded_file is not None:
+                with st.spinner("Processing..."):
+                    pil_image = Image.open(uploaded_file)
+                    st.image(pil_image, caption="Uploaded Image", use_column_width=True)
+                    opencv_image = np.array(pil_image)
+                    skinDiseasePrediction(opencv_image)
 
 if __name__ == "__main__":
     main()
