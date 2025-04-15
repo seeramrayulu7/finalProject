@@ -10,6 +10,10 @@ from chatbotInterface import user_input, display_chat, skinDiseasePrediction
 # Initialize the database
 init_db()
 
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "processed_question" not in st.session_state:
+    st.session_state.processed_question = False
 # Function to retrieve user data
 # Main app
 def main():
