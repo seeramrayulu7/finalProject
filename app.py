@@ -12,8 +12,11 @@ init_db()
 
 # Function to format chat messages
 def format_chat_message(role, message):
-    timestamp = datetime.now().strftime("%H:%M:%S")  # Get the current time in HH:MM:SS format
-    return f"[{role} {timestamp}] {message}"
+    return {
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "role": role,
+        "message": message
+    }
 
 # Initialize session state variables
 if "chat_history" not in st.session_state:
@@ -78,7 +81,7 @@ def main():
                 st.session_state.username = None
                 st.session_state.chat_history = []
                 st.session_state.uploaded_images = []
-                st.experimental_rerun()
+                st.sidebar.success("Logged out successfully.")
 
             # Chat History Button
             if st.sidebar.button("Chat History"):
@@ -104,18 +107,18 @@ def main():
         user_question = st.text_input("Ask your doubts")
         if st.button("Submit", key="submit_question"):
             if user_question:
-                formatted_user_message = format_chat_message("User", user_question)
-                st.session_state.chat_history.append(formatted_user_message)
+                # formatted_user_message = format_chat_message("User", user_question)
+                # st.session_state.chat_history.append(formatted_user_message)
 
                 # Simulate chatbot response
-                chatbot_response = "This is a simulated response."
-                formatted_chatbot_message = format_chat_message("Chatbot", chatbot_response)
-                st.session_state.chat_history.append(formatted_chatbot_message)
+                user_input(user_question,True)
+                # formatted_chatbot_message = format_chat_message("Chatbot", chatbot_response)
+                # st.session_state.chat_history.append(formatted_chatbot_message)
 
                 # Display chat history
-                for message in st.session_state.chat_history:
-                    st.write(message)
-
+                display_chat()
+            else:
+                st.warning("Please enter a question before submitting.")
         # Show Dashboard if Chat History Button is Clicked
         if st.session_state.show_dashboard:
             st.header("Your Dashboard")

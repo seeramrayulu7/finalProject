@@ -19,10 +19,9 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS user_data (
             username TEXT,
-            chat_history TEXT,  -- JSON string to store chat history
-            uploaded_images TEXT,  -- JSON string to store image paths
-            date DATE,  -- Date for which the data is stored
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            chat_history TEXT,  
+            uploaded_images TEXT,  
+            date DATE  
         )
     ''')
     conn.commit()
@@ -72,27 +71,39 @@ def register_user(username, password, name):
 def save_user_data(username, chat_history, uploaded_images):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    today = date.today().isoformat()  # Get today's date as a string (YYYY-MM-DD)
+    today = date.today().isoformat()
 
-    # Serialize chat history and images as JSON
-    chat_history_json = json.dumps(chat_history)  # Chat history as a JSON string
-    uploaded_images_json = json.dumps(uploaded_images)  # Uploaded images as a JSON string
+    # Serialize new data as JSON
+    new_chat_history_json = json.dumps(chat_history)
+    new_uploaded_images_json = json.dumps(uploaded_images)
 
     # Check if a row for the user and today's date already exists
-    cursor.execute("SELECT * FROM user_data WHERE username = ? AND date = ?", (username, today))
+    cursor.execute("SELECT chat_history, uploaded_images FROM user_data WHERE username = ? AND date = ?", (username, today))
     existing_row = cursor.fetchone()
 
     if existing_row:
-        # Update the existing row
+        # Deserialize existing data
+        existing_chat_history = json.loads(existing_row[0]) if existing_row[0] else []
+        existing_uploaded_images = json.loads(existing_row[1]) if existing_row[1] else []
+
+        # Append new data to existing data
+        updated_chat_history = existing_chat_history + chat_history
+        updated_uploaded_images = existing_uploaded_images + uploaded_images
+
+        # Serialize updated data
+        updated_chat_history_json = json.dumps(updated_chat_history)
+        updated_uploaded_images_json = json.dumps(updated_uploaded_images)
+
+        # Update the row with appended data
         cursor.execute(
-            "UPDATE user_data SET chat_history = ?, uploaded_images = ?, timestamp = CURRENT_TIMESTAMP WHERE username = ? AND date = ?",
-            (chat_history_json, uploaded_images_json, username, today)
+            "UPDATE user_data SET chat_history = ?, uploaded_images = ? WHERE username = ? AND date = ?",
+            (updated_chat_history_json, updated_uploaded_images_json, username, today)
         )
     else:
-        # Insert a new row
+        # Insert a new row if no existing row is found
         cursor.execute(
             "INSERT INTO user_data (username, chat_history, uploaded_images, date) VALUES (?, ?, ?, ?)",
-            (username, chat_history_json, uploaded_images_json, today)
+            (username, new_chat_history_json, new_uploaded_images_json, today)
         )
 
     conn.commit()
