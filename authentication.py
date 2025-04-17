@@ -68,7 +68,7 @@ def register_user(username, password, name):
     return True
 
 # Function to save user data
-def save_user_data(username, chat_history, uploaded_images):
+def save_user_data(username, chat_history=[], uploaded_images=[]):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     today = date.today().isoformat()

@@ -7,6 +7,9 @@ import numpy as np
 import os
 from chatbotInterface import user_input, display_chat, skinDiseasePrediction
 
+upload_folder = "uploaded_images"
+os.makedirs(upload_folder, exist_ok=True)
+
 # Initialize the database
 init_db()
 
@@ -21,6 +24,8 @@ def format_chat_message(role, message):
 # Initialize session state variables
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+if "uploaded_images" not in st.session_state:
+    st.session_state.uploaded_images = []
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "show_dashboard" not in st.session_state:
@@ -71,7 +76,7 @@ def main():
         else:
             # Logged-in user options
             if st.sidebar.button("Logout"):
-                if "chat_history" in st.session_state and "uploaded_images" in st.session_state:
+                if "chat_history" in st.session_state or "uploaded_images" in st.session_state:
                     save_user_data(
                         username=st.session_state.username,
                         chat_history=st.session_state.chat_history,
@@ -94,10 +99,18 @@ def main():
             st.sidebar.header("Upload an Image")
             uploaded_file = st.sidebar.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
             if uploaded_file:
+                # Generate a unique file name with the time of upload
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
+                file_name = f"{timestamp}_{uploaded_file.name}"
+                file_path = os.path.join(upload_folder, file_name)
+                
                 pil_image = Image.open(uploaded_file)
-                st.image(pil_image, caption="Uploaded Image", use_container_width=True)
+                st.image(pil_image, caption="Uploaded Image", width=300)
                 opencv_image = np.array(pil_image)
                 if st.sidebar.button("Submit Image", key="submit_image"):
+                    with open(file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                        st.session_state.uploaded_images.append(file_path)
                     with st.spinner("Processing..."):
                         skinDiseasePrediction(opencv_image)
 
@@ -128,10 +141,10 @@ def main():
                     st.subheader(f"Date: {entry['date']}")
                     st.write("Chat History:")
                     for chat in entry["chat_history"]:
-                        st.write(chat)
+                        st.write(f"{chat['time']}- {chat['role']}: \n{chat['message']}")
                     st.write("Uploaded Images:")
                     for image_path in entry["uploaded_images"]:
-                        st.image(image_path, caption=image_path)
+                        st.image(image_path, caption=image_path,width=300)
             else:
                 st.write("No data found for the selected date.")
     else:
