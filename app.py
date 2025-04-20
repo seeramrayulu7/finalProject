@@ -101,7 +101,7 @@ def main():
             if uploaded_file:
                 # Generate a unique file name with the time of upload
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-                file_name = f"{timestamp}_{uploaded_file.name}"
+                file_name = f"original_{timestamp}_{uploaded_file.name}"
                 file_path = os.path.join(upload_folder, file_name)
                 
                 pil_image = Image.open(uploaded_file)
@@ -112,7 +112,10 @@ def main():
                         f.write(uploaded_file.getbuffer())
                         st.session_state.uploaded_images.append(file_path)
                     with st.spinner("Processing..."):
-                        skinDiseasePrediction(opencv_image)
+                        heatmap_img = skinDiseasePrediction(opencv_image)
+                        heatmap_file_path = file_path.replace("original", "heatmap")
+                        heatmap_img.save(heatmap_file_path)
+                        st.session_state.uploaded_images.append(heatmap_file_path)
 
     # Chatbot and Image Upload Interface
     if st.session_state.logged_in:
@@ -139,12 +142,27 @@ def main():
             if user_data:
                 for entry in user_data:
                     st.subheader(f"Date: {entry['date']}")
-                    st.write("Chat History:")
                     for chat in entry["chat_history"]:
                         st.write(f"{chat['time']}- {chat['role']}: \n{chat['message']}")
                     st.write("Uploaded Images:")
                     for image_path in entry["uploaded_images"]:
-                        st.image(image_path, caption=image_path,width=300)
+                        if 'heatmap' in image_path:
+                                continue
+                        col1,col2 = st.columns(2)
+                        heatmap_file_path = image_path.replace("original", "heatmap")
+                        # print("registered heatmap file path is ",heatmap_file_path)
+                        with col1:
+                            if os.path.exists(image_path):
+                                st.image(image_path, caption="Original Image",width=300)
+                                timestamp = image_path.split("_")[3]
+                                st.write(f"Uploaded at {datetime.strptime(timestamp, "%H%M%S").strftime("%H:%M:%S")}")
+                                st.write("\n\n\n\n\n\n")
+                                with col2:
+                                    # print("Heatmap file path:", heatmap_file_path,"\n the os.path says it exists is ",os.path.exists(heatmap_file_path))
+                                    if os.path.exists(heatmap_file_path):
+                                        st.image(heatmap_file_path, caption="Heatmap",width=300)
+                                    else:
+                                        st.write("Heatmap not available.")
             else:
                 st.write("No data found for the selected date.")
     else:

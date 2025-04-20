@@ -20,9 +20,12 @@ import imutils
 import keras
 import time
 from datetime import datetime
+import tensorflow as tf
+from keras import models
 
 # Load the model
 skin_predict = keras.models.load_model("new_skin_disease.keras")
+grad_model = models.Model([skin_predict.inputs], [skin_predict.get_layer(index=-4).output, skin_predict.output])
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
@@ -82,7 +85,8 @@ def get_conversational_chain():
 
     If the question is about skin diseases, you have access to a model that can predict the possibility of the following diseases:
     'Acitinic Keratosis', 'Basal Cell Carcinoma', 'Dermatofibroma', 'Melanoma', 'Nevus', 'Pigmented Benign Keratosis', 'Seborrheic Keratosis', 'Squamous Cell Carcinoma', 'Vascular Lesion'.
-    
+    when giving the answer for the image uploaded by user. Please give the causes, symptoms and treatment for the disease in the answer.
+
     Answer based on the context for skin diseases, but for general questions, provide general knowledge. 
 
     Context:\n{context}\n
@@ -100,20 +104,46 @@ def skinDiseasePrediction(image):
         image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
     elif image.shape[-1] == 1:
         image = np.repeat(image, 3, axis=-1)
+    original_img = image.copy()
     image = cv2.resize(image, (224, 224))
     image = np.expand_dims(image, axis=0)
     arr = skin_predict.predict(image)
-    prediction = max(arr[0])
-    index = np.argmax(arr[0])
     arr_of_dis = [
         'Acitinic Keratosis', 'Basal Cell Carcinoma', 'Dermatofibroma', 'Melanoma',
         'Nevus', 'Pigmented Benign Keratosis', 'Seborrheic Keratosis', 'Squamous Cell Carcinoma', 'Vascular Lesion'
     ]
+    prediction = max(arr[0])
+    index = np.argmax(arr[0])
+    with tf.GradientTape() as tape:
+        conv_outputs, predictions = grad_model(image)
+        loss = predictions[:, index]
+    grads = tape.gradient(loss, conv_outputs)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    heatmap = tf.reduce_sum(tf.multiply(pooled_grads, conv_outputs), axis=-1).numpy()[0]
+
+    # Normalize heatmap
+    heatmap = np.maximum(heatmap, 0)
+    heatmap /= np.max(heatmap)
+    img_size = (224, 224)  # size of the input image for the model
+    # Load original image for overlay
+
+    # Resize heatmap to match image
+    heatmap = cv2.resize(heatmap, (original_img.shape[1], original_img.shape[0]))
+    heatmap = np.uint8(255 * heatmap)
+    heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+
+    # Superimpose the heatmap
+    superimposed_img = cv2.addWeighted(original_img, 0.6, heatmap_color, 0.4, 0)
+    
+    # Convert the superimposed image (NumPy array) to a PIL Image
+    superimposed_img_pil = Image.fromarray(cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB))
     
     if prediction > 0.5:
         user_input(f"The user has uploaded an image just now and there is a High chance of presence of **{arr_of_dis[index]}**!! Consult a doctor immediately.", True)
     else:
         user_input("The user has uploaded an image just now and there is a Low chance of presence of any diseases. Consult a doctor if the issue persists.", True)
+    return superimposed_img_pil
 
 def user_input(user_question, flag):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
